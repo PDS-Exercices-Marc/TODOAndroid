@@ -9,6 +9,11 @@ android {
         pickFirst 'META-INF/NOTICE'
 
     }
+    buildTypes {
+        customDebugType{
+            debuggable true
+        }
+    }
 
     buildFeatures {
         viewBinding true

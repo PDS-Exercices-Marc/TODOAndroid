@@ -1,8 +1,17 @@
 package org.udg.pds.todoandroid.fragment;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+
+import androidx.annotation.NonNull;
+import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -11,17 +20,10 @@ import android.view.animation.AnimationUtils;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.annotation.NonNull;
-import androidx.fragment.app.Fragment;
-import androidx.navigation.NavDirections;
-import androidx.navigation.Navigation;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
-
 import org.udg.pds.todoandroid.R;
 import org.udg.pds.todoandroid.TodoApp;
-import org.udg.pds.todoandroid.databinding.TaskListBinding;
-import org.udg.pds.todoandroid.entity.Task;
+import org.udg.pds.todoandroid.databinding.FragmentGroupListBinding;
+import org.udg.pds.todoandroid.entity.Group;
 import org.udg.pds.todoandroid.rest.TodoApi;
 import org.udg.pds.todoandroid.util.Global;
 
@@ -32,118 +34,112 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-/**
- * Created by imartin on 12/02/16.
- */
-public class TaskList extends Fragment {
+public class GroupFragment extends Fragment {
 
     TodoApi mTodoService;
-    private TaskListBinding binding;
+    private FragmentGroupListBinding binding;
 
     RecyclerView mRecyclerView;
-    private TRAdapter mAdapter;
+    private GRAdapter mAdapter;
 
     @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container,
+    public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        binding  = TaskListBinding.inflate(inflater);
+        binding = FragmentGroupListBinding.inflate(inflater);
         return binding.getRoot();
+
     }
 
     @Override
     public void onStart() {
-
         super.onStart();
         mTodoService = ((TodoApp) this.getActivity().getApplication()).getAPI();
-        
-        mRecyclerView = binding.taskRecyclerview;
-        mAdapter = new TRAdapter(this.getActivity().getApplication());
+
+        mRecyclerView = binding.groupRecyclerview;
+        mAdapter = new GRAdapter(this.getActivity().getApplication());
         mRecyclerView.setAdapter(mAdapter);
         mRecyclerView.setLayoutManager(new LinearLayoutManager(this.getActivity()));
 
-        // This is the listener to the "Add Task" button
-        binding.bAddTaskRv.setOnClickListener(view -> {
-            NavDirections action =
-                TaskListDirections
-                    .actionActionTasksToAddTaskFragment();
-            Navigation.findNavController(view).navigate(action);
-        });
+        // NEW BUTTON LISTENERS GO BELOW HERE
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        this.updateTaskList();
+        this.updateGroupList();
     }
 
-    public void showTaskList(List<Task> tl) {
+    private void showGroupList(List<Group> groups) {
         mAdapter.clear();
-        for (Task t : tl) {
-            mAdapter.add(t);
+        Log.d("GroupFragment_ListUpdate",groups.toString());
+        for (Group g : groups) {
+            mAdapter.add(g);
         }
     }
 
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (requestCode == Global.RQ_ADD_TASK) {
-            this.updateTaskList();
+        if (requestCode == Global.RQ_ADD_GROUP) {
+            this.updateGroupList();
         }
     }
 
-    public void updateTaskList() {
+    private void updateGroupList() {
+        Call<List<Group>> call = mTodoService.getGroups();
 
-        Call<List<Task>> call = mTodoService.getTasks();
-
-        call.enqueue(new Callback<List<Task>>() {
+        call.enqueue(new Callback<List<Group>>() {
             @Override
-            public void onResponse(@NonNull Call<List<Task>> call, @NonNull Response<List<Task>> response) {
+            public void onResponse(Call<List<Group>> call, Response<List<Group>> response) {
                 if (response.isSuccessful()) {
-                    TaskList.this.showTaskList(response.body());
+                    GroupFragment.this.showGroupList(response.body());
                 } else {
-                    Toast.makeText(TaskList.this.getContext(), "Error reading tasks", Toast.LENGTH_LONG).show();
+                    Toast.makeText(GroupFragment.this.getContext(), "Error reading groups", Toast.LENGTH_LONG).show();
                 }
             }
 
             @Override
-            public void onFailure(@NonNull Call<List<Task>> call, @NonNull Throwable t) {
-
+            public void onFailure(Call<List<Group>> call, Throwable t) {
+                Toast.makeText(GroupFragment.this.getContext(), "Error making call", Toast.LENGTH_LONG).show();
             }
         });
     }
 
-    static class TaskViewHolder extends RecyclerView.ViewHolder {
+    static class GroupViewHolder extends RecyclerView.ViewHolder {
+        TextView name;
         TextView description;
-        TextView dateLimit;
         View view;
 
-        TaskViewHolder(View itemView) {
+        GroupViewHolder(View itemView) {
             super(itemView);
             view = itemView;
-            description = itemView.findViewById(R.id.itemDescription);
-            dateLimit = itemView.findViewById(R.id.itemDateLimit);
+            name = itemView.findViewById(R.id.groupName);
+            description = itemView.findViewById(R.id.groupDesc);
         }
     }
 
-    static class TRAdapter extends RecyclerView.Adapter<TaskList.TaskViewHolder> {
+    static class GRAdapter extends RecyclerView.Adapter<GroupFragment.GroupViewHolder> {
 
-        List<Task> list = new ArrayList<>();
+        List<Group> list = new ArrayList<>();
         Context context;
 
-        public TRAdapter(Context context) {
+        public GRAdapter(Context context) {
             this.context = context;
         }
 
         @Override
-        public TaskList.TaskViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+        public GroupFragment.GroupViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
             View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.task_layout, parent, false);
-            return new TaskList.TaskViewHolder(v);
+            return new GroupFragment.GroupViewHolder(v);
         }
 
         @Override
-        public void onBindViewHolder(TaskList.TaskViewHolder holder, final int position) {
-            holder.description.setText(list.get(position).text);
-            holder.dateLimit.setText(list.get(position).dateLimit.toString());
+        public void onBindViewHolder(GroupFragment.GroupViewHolder holder,
+                                     @SuppressLint("RecyclerView") final int position) {
+            Log.d("GroupFragment_OnBindViewHolder_Pos", String.valueOf(position));
+            Log.d("GroupFragment_OnBindViewHolder_Name",list.get(position).name);
+            holder.name.setText(list.get(position).name);
+            holder.description.setText(list.get(position).description);
 
             holder.view.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -151,16 +147,6 @@ public class TaskList extends Fragment {
                     int duration = Toast.LENGTH_LONG;
 
                     Toast toast = Toast.makeText(context, String.format("Hey, I'm item %1d", position), duration);
-                    toast.show();
-                }
-            });
-
-            holder.dateLimit.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    int duration = Toast.LENGTH_LONG;
-
-                    Toast toast = Toast.makeText(context, "adios!", duration);
                     toast.show();
                 }
             });
@@ -175,18 +161,17 @@ public class TaskList extends Fragment {
 
         @Override
         public void onAttachedToRecyclerView(@NonNull RecyclerView recyclerView) {
-
             super.onAttachedToRecyclerView(recyclerView);
         }
 
         // Insert a new item to the RecyclerView
-        public void insert(int position, Task data) {
+        public void insert(int position, Group data) {
             list.add(position, data);
             notifyItemInserted(position);
         }
 
         // Remove a RecyclerView item containing the Data object
-        public void remove(Task data) {
+        public void remove(Group data) {
             int position = list.indexOf(data);
             list.remove(position);
             notifyItemRemoved(position);
@@ -197,8 +182,8 @@ public class TaskList extends Fragment {
             viewHolder.itemView.setAnimation(animAnticipateOvershoot);
         }
 
-        public void add(Task t) {
-            list.add(t);
+        public void add(Group g) {
+            list.add(g);
             this.notifyItemInserted(list.size() - 1);
         }
 
@@ -208,4 +193,5 @@ public class TaskList extends Fragment {
             this.notifyItemRangeRemoved(0, size);
         }
     }
+
 }
